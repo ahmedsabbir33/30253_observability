@@ -8,6 +8,19 @@
 
 ---
 
+## Table of Contents
+1. [Project Overview & Three Operational Flows](#1-project-overview--three-operational-flows)
+2. [System Architecture & Cross-Environment Networking](#2-system-architecture--cross-environment-networking)
+3. [Repository Structure](#3-repository-structure)
+4. [Reproducible Setup Guide (Vagrant & Native Ubuntu)](#4-reproducible-setup-guide-vagrant--native-ubuntu)
+5. [Step-by-Step Verification Runbook (Tasks 01 to 07)](#5-step-by-step-verification-runbook-tasks-01-to-07)
+6. [PromQL, Host CLI Cross-Checks & LogQL Reference](#6-promql-host-cli-cross-checks--logql-reference)
+7. [Evidence Gallery Mapping (`evidence/`)](#7-evidence-gallery-mapping-evidence)
+8. [Architectural Limitation & Production Improvement](#8-architectural-limitation--production-improvement)
+9. [Clean Teardown & Reset](#9-clean-teardown--reset)
+
+---
+
 ## 1. Project Overview & Three Operational Flows
 
 This repository delivers a complete, reproducible observability platform running on Ubuntu 26.04 with **Docker Compose** and **MicroK8s**. It implements and verifies three end-to-end operational flows:
@@ -22,35 +35,37 @@ This repository delivers a complete, reproducible observability platform running
 
 ## 2. System Architecture & Cross-Environment Networking
 
-~~text
-+-----------------------------------------------------------------------------------+
-| Ubuntu 26.04 VM / Host (Loopback: 127.0.0.1 | Private Host-Only IP: 192.168.56.10)|
-|                                                                                   |
-|  +----------------------------- DOCKER COMPOSE --------------------------------+  |
-|  |                                                                             |  |
-|  |  [node-exporter :9100] --(5s scrape)--> [prometheus :9090]                  |  |
-|  |   (/proc, /sys, /rootfs)                        ^                           |  |
-|  |                                                 | (PromQL)                  |  |
-|  |  [order-api :8000] ------(5s scrape)------------+                           |  |
-|  |   (GET /health, POST /api/orders,               v                           |  |
-|  |    GET /metrics + Neubrutalist UI)       [grafana :3000] --(SMTP :1025)--> [mailpit :8025]
-|  |                                                 ^                           |  |
-|  |                                                 | (LogQL)                   |  |
-|  |                                           [loki :3100]                      |  |
-|  +-------------------------------------------------|---------------------------+  |
-|                                                    ^                              |
-|                                                    | HTTP POST /loki/api/v1/push  |
-|                                                    | (via 192.168.56.10:3100)     |
-|  +------------------------------- MICROK8S --------|---------------------------+  |
-|  |                                                 |                           |  |
-|  |  Namespace: observability         [grafana-alloy DaemonSet]                 |  |
-|  |                                                 ^                           |  |
-|  |                                                 | K8s Pods/Log API          |  |
-|  |  Namespace: order-workloads       [order-worker Deployment]                 |  |
-|  |                                    (stdout: INFO JSON | stderr: ERROR JSON) |  |
-|  +-----------------------------------------------------------------------------+  |
-+-----------------------------------------------------------------------------------+
-~~
+```text
++------------------------------------------------------------------------------------+
+| Ubuntu 26.04 Host (Loopback: 127.0.0.1 | Private Host-Only NIC: 192.168.56.10)     |
+|                                                                                    |
+|  +------------------------------ DOCKER COMPOSE --------------------------------+  |
+|  |                                                                              |  |
+|  |  [node-exporter :9100] --(5s scrape)--> [prometheus :9090]                   |  |
+|  |   (/proc, /sys, /rootfs)                        |                            |  |
+|  |                                                 | (PromQL)                   |  |
+|  |  [order-api :8000] ------(5s scrape)------------+                            |  |
+|  |   (GET /health, POST /api/orders,               v                            |  |
+|  |    GET /metrics + Neubrutalist UI)       [grafana :3000]                     |  |
+|  |                                            |          ^                      |  |
+|  |                            (SMTP :1025)----+          | (LogQL)              |  |
+|  |                                  v                    |                      |  |
+|  |                           [mailpit :8025]       [loki :3100]                 |  |
+|  +-------------------------------------------------------|----------------------+  |
+|                                                          ^                         |
+|                                                          | HTTP POST               |
+|                                                          | /loki/api/v1/push       |
+|                                                          | (192.168.56.10:3100)    |
+|  +------------------------------- MICROK8S --------------|----------------------+  |
+|  |                                                       |                      |  |
+|  |  Namespace: observability              [grafana-alloy DaemonSet]             |  |
+|  |                                                       ^                      |  |
+|  |                                                       | K8s Pods/Log API     |  |
+|  |  Namespace: order-workloads            [order-worker Deployment]             |  |
+|  |                                         (stdout: INFO | stderr: ERROR)       |  |
+|  +------------------------------------------------------------------------------+  |
++------------------------------------------------------------------------------------+
+```
 
 ### How Cross-Boundary Networking Works (MicroK8s Alloy to Docker Compose Loki)
 1. **Strict Endpoint Privacy (Task 02):**  
@@ -64,7 +79,7 @@ This repository delivers a complete, reproducible observability platform running
 
 ## 3. Repository Structure
 
-~~text
+```text
 30253_observability/
 ├── Vagrantfile                        # Automated Ubuntu 26.04 VM + Docker + MicroK8s provisioner
 ├── compose.yaml                       # Docker Compose definition (6 services + 3 named volumes)
@@ -104,7 +119,7 @@ This repository delivers a complete, reproducible observability platform running
 │   ├── verify-task04.sh
 │   ├── verify-task05.sh
 │   └── verify-task07-alert.sh
-└── evidence/                          # Screenshots & verification outputs for Tasks 01–07
+└── evidence/                          # Screenshots & verification outputs for Tasks 01-07
     ├── 01-compose-and-cluster.png
     ├── 02-order-api-metrics.png
     ├── 03-prometheus-targets.png
@@ -113,33 +128,76 @@ This repository delivers a complete, reproducible observability platform running
     ├── 06-grafana-unified-dashboard.png
     ├── 07-grafana-alert-firing.png
     └── 08-delivered-alert-email.png
-~~
+```
 
 ---
 
-## 4. Reproducible Setup Guide
+## 4. Reproducible Setup Guide (Vagrant & Native Ubuntu)
 
 ### Option A: Automated Setup with Vagrant (Recommended)
-1. Ensure **VirtualBox** and **Vagrant** are installed on your host machine (with at least 6 GB free RAM and 4 vCPUs).
-2. Clone the repository and start the environment:
-~~bash
-git clone https://github.com/ahmedsabbir33/30253_observability.git
+
+#### Prerequisites on Host Machine
+- **VirtualBox** (v7.0+)
+- **Vagrant** (v2.4+)
+- **Hardware Resources:** At least **6 GB free RAM** and **4 vCPUs** allocated in `Vagrantfile`
+
+#### Step-by-Step Deployment
+1. Clone the repository and start the Vagrant environment:
+```bash
+git clone [https://github.com/ahmedsabbir33/30253_observability.git](https://github.com/ahmedsabbir33/30253_observability.git)
 cd 30253_observability
 vagrant up
-~~
-3. During `vagrant up`, Vagrant automatically installs Docker Compose and MicroK8s, copies `.env.example` to `.env`, and executes `./scripts/deploy-all.sh`.
+```
+2. During `vagrant up`, the `Vagrantfile` provisioner automatically:
+   - Boots Ubuntu 26.04 (`bento/ubuntu-26.04`) with private Host-Only IP `192.168.56.10` and `127.0.0.1` localhost port forwarding.
+   - Installs **Docker Engine**, **Docker Compose v2**, and **MicroK8s** (`dns`, `hostpath-storage`, `helm3`).
+   - Syncs the project into `/home/vagrant/30253_observability`, copies `.env.example` to `.env`, and executes `./scripts/deploy-all.sh`.
+3. SSH into the provisioned VM to run verification commands:
+```bash
+vagrant ssh
+cd ~/30253_observability
+```
 
-### Option B: Setup on an Existing Ubuntu 26.04 Host
-~~bash
-git clone https://github.com/ahmedsabbir33/30253_observability.git
+---
+
+### Option B: Setup on an Existing Ubuntu 26.04 Host (Without Vagrant)
+
+If deploying directly on a local Ubuntu 26.04 machine where Docker Compose v2 and MicroK8s are installed:
+
+```bash
+git clone [https://github.com/ahmedsabbir33/30253_observability.git](https://github.com/ahmedsabbir33/30253_observability.git)
 cd 30253_observability
+
+# 1. Create local .env from template
 cp .env.example .env
+
+# 2. Bind 192.168.56.10 to loopback if the machine does not have a VirtualBox Host-Only NIC
 sudo ip addr add 192.168.56.10/32 dev lo || true
+
+# 3. Make scripts executable and deploy the full stack
 chmod +x scripts/*.sh
 ./scripts/deploy-all.sh
-~~
+```
+
+---
+
+### Environment Variables (`.env.example` -> `.env`)
+
+No passwords or SMTP credentials are hardcoded in any tracked configuration file. `.env` is ignored via `.gitignore` and injected into Grafana at runtime:
+
+| Variable | Default Value in `.env.example` | Purpose |
+| :--- | :--- | :--- |
+| `GF_SECURITY_ADMIN_USER` | `admin` | Grafana administrator username |
+| `GF_SECURITY_ADMIN_PASSWORD` | `changeme_local_only` | Grafana administrator password |
+| `GF_SMTP_ENABLED` | `true` | Enables outbound email alerting in Grafana |
+| `GF_SMTP_HOST` | `mailpit:1025` | Internal Docker Compose Mailpit SMTP relay (`smtp.gmail.com:587` also supported) |
+| `GF_SMTP_FROM_ADDRESS` | `alerts@observability.local` | Sender address on alert notifications |
+| `ALERT_RECIPIENT_EMAIL` | `sabbir.30253@observability.local` | Target inbox for Grafana alert contact point |
+
+---
 
 ### Private Service Endpoints
+
 | Service | Private Host-Only URL | Localhost Forwarded URL | Credentials |
 | :--- | :--- | :--- | :--- |
 | **Order API & Neubrutalist Chaos UI** | `http://192.168.56.10:8000` | `http://127.0.0.1:8000` | None |
@@ -149,75 +207,138 @@ chmod +x scripts/*.sh
 
 ---
 
-## 5. Step-by-Step Verification Commands (Tasks 01 to 07)
+## 5. Step-by-Step Verification Runbook (Tasks 01 to 07)
 
-SSH into the Vagrant VM (`vagrant ssh`) and run:
-~~bash
-cd ~/30253_observability
+Inside the Ubuntu VM (`vagrant ssh` -> `cd ~/30253_observability`), run the following verification steps:
 
-# Task 01 & 02: Verify Ubuntu 26.04, Docker Compose, MicroK8s & Volume Persistence
+### Task 01 & Task 02: Verify Host Readiness, Compose Stack & Volume Durability
+```bash
 lsb_release -a
-docker compose ps
+docker --version && docker compose version
+microk8s status --wait-ready
 microk8s kubectl get nodes -o wide
+docker compose ps
+
+# Verify named volume persistence across container restarts
 docker compose restart prometheus loki grafana
+docker compose ps
+```
 
-# Task 03: Generate normal orders, slow orders, bursts, and HTTP 400/500 failures
+### Task 03: Generate Multi-Rate Traffic & Controlled Failures on Order API
+```bash
 ./scripts/traffic-test.sh
+```
+- Verifies `GET /health` (`HTTP 200`).
+- Sends single normal (`HTTP 201`), client validation failure (`HTTP 400`), and upstream payment gateway crash (`HTTP 500`) requests to `POST /api/orders`.
+- Executes a steady low-rate traffic phase followed by a 30-request concurrent burst (normal, slow, and failed orders).
+- Prints before-and-after snapshots of `GET /metrics` showing `order_api_http_requests_total`, `order_api_http_request_duration_seconds_bucket`, `order_api_orders_created_total`, and `order_api_order_failures_total`.
 
-# Task 04: Run the 5 PromQL queries and compare with Ubuntu CLI (free -m, df -B1M /, uptime)
+### Task 04: Verify Prometheus Targets, 5 PromQL Queries & Ubuntu CLI Cross-Checks
+```bash
 ./scripts/verify-task04.sh
+```
+- Confirms both Prometheus scrape targets (`ubuntu-node-exporter` and `order-api`) are `UP` at a `5s` scrape interval.
+- Executes all 5 required PromQL queries via the Prometheus HTTP API.
+- Runs side-by-side Ubuntu host CLI cross-checks comparing Prometheus readings against `free -m`, `df -B1M /`, and `uptime`.
 
-# Task 05: Verify MicroK8s order-worker & Alloy pods and query Loki via LogQL
+### Task 05: Verify MicroK8s Workload, Grafana Alloy & Loki Log Ingestion
+```bash
 ./scripts/verify-task05.sh
+```
+- Confirms `order-worker` (`order-workloads` namespace) and `alloy` (`observability` namespace) pods are `Running`.
+- Compares `microk8s kubectl logs` output against Loki's `/loki/api/v1/query_range` API for both `stdout` (`INFO`) and `stderr` (`ERROR`) streams.
 
-# Task 06 & 07: Trigger >20% HTTP 500 error rate and verify alert email delivery in Mailpit
+### Task 06 & Task 07: Verify 10-Panel Dashboard & Trigger Real Alert Email
+```bash
 ./scripts/verify-task07-alert.sh
-~~
+```
+- Sends a burst of 30 `HTTP 500` requests to push the Order API failure rate above the `20%` alert threshold.
+- Waits 25 seconds for the provisioned Grafana alert rule (`Order API High HTTP Error Rate (Over 20%)`) to transition to `Firing`.
+- Queries the Mailpit REST API (`http://127.0.0.1:8025/api/v1/messages`) to verify delivery of the `[FIRING]` alert email to `sabbir.30253@observability.local`.
+- Sends 40 valid recovery requests (`HTTP 201`) to return the alert rule to `Normal` and trigger the `[RESOLVED]` email.
 
 ---
 
-## 6. PromQL & LogQL Reference
+## 6. PromQL, Host CLI Cross-Checks & LogQL Reference
 
 ### Five Required PromQL Expressions (Task 04)
-1. **Host CPU Utilization (%):**
-~~promql
-100 - (avg by (instance) (rate(node_cpu_seconds_total{job="ubuntu-node-exporter", mode="idle"}[1m])) * 100)
-~~
-2. **Host RAM Utilization (%):**
-~~promql
-((node_memory_MemTotal_bytes{job="ubuntu-node-exporter"} - node_memory_MemAvailable_bytes{job="ubuntu-node-exporter"}) / node_memory_MemTotal_bytes{job="ubuntu-node-exporter"}) * 100
-~~
-3. **Order API Request Rate (Requests/sec):**
-~~promql
-sum(rate(order_api_http_requests_total{job="order-api"}[1m]))
-~~
-4. **Order API Error / Failure Rate (%):**
-~~promql
-(sum(rate(order_api_http_requests_total{job="order-api", outcome="failure"}[1m])) / clamp_min(sum(rate(order_api_http_requests_total{job="order-api"}[1m])), 0.0001)) * 100
-~~
-5. **Order API p95 Request Latency (Seconds):**
-~~promql
-histogram_quantile(0.95, sum by (le) (rate(order_api_http_request_duration_seconds_bucket{job="order-api", route="/api/orders"}[1m])))
-~~
 
-### Key LogQL Queries (Task 05)
-- **All Workload Logs:** `{namespace="order-workloads", container="order-worker"}`
-- **Normal Logs (`stdout`):** `{namespace="order-workloads", container="order-worker", stream="stdout"} |= "INFO"`
-- **Error Logs (`stderr`):** `{namespace="order-workloads", container="order-worker", stream="stderr"} |= "ERROR"`
+1. **Host CPU Utilization (%):**
+```promql
+100 - (avg by (instance) (rate(node_cpu_seconds_total{job="ubuntu-node-exporter", mode="idle"}[1m])) * 100)
+```
+
+2. **Host RAM Utilization (%):**
+```promql
+((node_memory_MemTotal_bytes{job="ubuntu-node-exporter"} - node_memory_MemAvailable_bytes{job="ubuntu-node-exporter"}) / node_memory_MemTotal_bytes{job="ubuntu-node-exporter"}) * 100
+```
+
+3. **Order API Request Rate (Requests/sec):**
+```promql
+sum(rate(order_api_http_requests_total{job="order-api"}[1m]))
+```
+
+4. **Order API Error / Failure Rate (%):**
+```promql
+(sum(rate(order_api_http_requests_total{job="order-api", outcome="failure"}[1m])) / clamp_min(sum(rate(order_api_http_requests_total{job="order-api"}[1m])), 0.0001)) * 100
+```
+
+5. **Order API p95 Request Latency (Seconds):**
+```promql
+histogram_quantile(0.95, sum by (le) (rate(order_api_http_request_duration_seconds_bucket{job="order-api", route="/api/orders"}[1m])))
+```
+
+### Key LogQL Queries for Grafana Explore (Task 05)
+
+- **All MicroK8s Workload Logs:**
+```logql
+{namespace="order-workloads", container="order-worker"}
+```
+
+- **Normal Operational Logs (`stdout` / `INFO`):**
+```logql
+{namespace="order-workloads", container="order-worker", stream="stdout"} |= "INFO"
+```
+
+- **Error / Fault Logs (`stderr` / `ERROR`):**
+```logql
+{namespace="order-workloads", container="order-worker", stream="stderr"} |= "ERROR"
+```
 
 ---
 
-## 7. Architectural Limitation & Production Improvement
+## 7. Evidence Gallery Mapping (`evidence/`)
+
+| Evidence File | Verified Requirement |
+| :--- | :--- |
+| `evidence/01-compose-and-cluster.png` | Ubuntu 26.04 version, Docker Compose services `Up`, and MicroK8s node `Ready` |
+| `evidence/02-order-api-metrics.png` | Order API Neubrutalist Web UI + `./scripts/traffic-test.sh` before/after `/metrics` output |
+| `evidence/03-prometheus-targets.png` | Prometheus `/targets` page showing `ubuntu-node-exporter` and `order-api` both `UP` |
+| `evidence/04-promql-and-host-crosscheck.png` | Output of `./scripts/verify-task04.sh` comparing PromQL against `free -m`, `df -B1M /`, and `uptime` |
+| `evidence/05-microk8s-alloy-loki-logs.png` | Grafana Explore showing `order-worker` `stdout` & `stderr` logs + `./scripts/verify-task05.sh` output |
+| `evidence/06-grafana-unified-dashboard.png` | Provisioned 10-panel Grafana dashboard (`candidate-30253-observability`) under live load |
+| `evidence/07-grafana-alert-firing.png` | Grafana Alerting UI showing `Order API High HTTP Error Rate (Over 20%)` in `Firing` state |
+| `evidence/08-delivered-alert-email.png` | Mailpit Web Inbox (`:8025`) showing delivered `[FIRING]` and `[RESOLVED]` alert emails |
+
+---
+
+## 8. Architectural Limitation & Production Improvement
 
 - **Current Limitation:**  
-  Grafana Alloy inside MicroK8s pushes logs over unauthenticated HTTP to a static private host IP (`192.168.56.10:3100`), and Prometheus/Loki store data on single-node local Docker volumes.
+  Grafana Alloy inside MicroK8s pushes logs over unauthenticated HTTP to a static private host IP (`192.168.56.10:3100`), and Prometheus/Loki store time-series and log chunks on single-node local Docker volumes.
 - **Concrete Production Improvement:**  
-  Place an mTLS-authenticated OpenTelemetry/Loki gateway in front of Loki with tenant headers (`X-Scope-OrgID`), abstract the host endpoint via a Kubernetes `Service` + `EndpointSlice` backed by internal DNS instead of a static IP, and configure S3-compatible object storage (MinIO/AWS S3) for durable retention.
+  Place an mTLS-authenticated OpenTelemetry/Loki gateway in front of Loki with multi-tenant headers (`X-Scope-OrgID`), abstract the host endpoint via a Kubernetes `Service` + `EndpointSlice` backed by internal DNS instead of a static IP, and configure S3-compatible object storage (MinIO/AWS S3) for durable, multi-node retention.
 
 ---
 
-## 8. Clean Teardown & Reset
+## 9. Clean Teardown & Reset
 
-~~bash
+To remove all MicroK8s workloads, Helm releases, Docker Compose containers, and named volumes inside the VM:
+```bash
 ./scripts/teardown.sh
-~~
+```
+
+To completely destroy the Vagrant VM from your host machine:
+```bash
+vagrant destroy -f
+```
