@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: order-workloads
+  labels:
+    app.kubernetes.io/part-of: observability-assessment
+    candidate_id: "30253"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    app.kubernetes.io/part-of: observability-assessment
+    candidate_id: "30253"

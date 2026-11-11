@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-worker
+  namespace: order-workloads
+  labels:
+    app: order-worker
+    component: fulfillment-worker
+    candidate_id: "30253"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-worker
+  template:
+    metadata:
+      labels:
+        app: order-worker
+        component: fulfillment-worker
+        env: microk8s
+    spec:
+      containers:
+        - name: order-worker
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - -e
+            - |
+              let seq = 1000;
+              const categories = ['electronics', 'books', 'groceries'];
+              const warehouses = ['dhaka-north', 'dhaka-south', 'chattogram-hub'];
+
+              console.log(JSON.stringify({
+                timestamp: new Date().toISOString(),
+                level: 'INFO',
+                stream: 'stdout',
+                service: 'order-worker',
+                event: 'worker_initialized',
+                message: 'MicroK8s order fulfillment worker started successfully'
+              }));
+
+              setInterval(() => {
+                seq++;
+                const orderId = `ORD-K8S-${seq}`;
+                const category = categories[seq % categories.length];
+                const warehouse = warehouses[seq % warehouses.length];
+
+                // Every 3rd cycle (every 9s), emit a controlled error log to stderr
+                if (seq % 3 === 0) {
+                  process.stderr.write(JSON.stringify({
+                    timestamp: new Date().toISOString(),
+                    level: 'ERROR',
+                    stream: 'stderr',
+                    service: 'order-worker',
+                    event: 'inventory_reservation_failed',
+                    order_id: orderId,
+                    category: category,
+                    warehouse: warehouse,
+                    error_code: 'DEADLOCK_DETECTED',
+                    message: `ERROR: Failed to reserve stock for ${orderId} in ${warehouse} - database lock timeout exceeded`
+                  }) + '\n');
+                } else {
+                  // Normal operational log to stdout
+                  process.stdout.write(JSON.stringify({
+                    timestamp: new Date().toISOString(),
+                    level: 'INFO',
+                    stream: 'stdout',
+                    service: 'order-worker',
+                    event: 'order_dispatched',
+                    order_id: orderId,
+                    category: category,
+                    warehouse: warehouse,
+                    processing_ms: 20 + (seq % 45),
+                    message: `INFO: Order ${orderId} (${category}) packed and dispatched from ${warehouse}`
+                  }) + '\n');
+                }
+              }, 3000);
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"

@@ -1,0 +1,97 @@
+controller:
+  type: daemonset
+
+alloy:
+  stabilityLevel: "generally-available"
+  configMap:
+    create: true
+    content: |
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // 1. Discover all Kubernetes pods in MicroK8s
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // 2. Relabel Kubernetes metadata into standard Loki labels
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Keep only running pods
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed|Completed"
+          action        = "drop"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action        = "replace"
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          action        = "replace"
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          action        = "replace"
+          target_label  = "container"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          action        = "replace"
+          target_label  = "app"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          action        = "replace"
+          target_label  = "node"
+        }
+      }
+
+      // 3. Tail pod logs via the Kubernetes API
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.extract_json_metadata.receiver]
+      }
+
+      // 4. Extract JSON 'level' (INFO/ERROR) and 'stream' (stdout/stderr) into bounded labels
+      loki.process "extract_json_metadata" {
+        stage.json {
+          expressions = {
+            level  = "level",
+            stream = "stream",
+            event  = "event",
+          }
+        }
+
+        stage.labels {
+          values = {
+            level  = "",
+            stream = "",
+          }
+        }
+
+        forward_to = [loki.write.docker_compose_loki.receiver]
+      }
+
+      // 5. Push logs across the runtime boundary to Docker Compose Loki
+      loki.write "docker_compose_loki" {
+        endpoint {
+          url = "http://192.168.56.10:3100/loki/api/v1/push"
+        }
+        external_labels = {
+          cluster      = "microk8s-local",
+          job          = "alloy-k8s-logs",
+          candidate_id = "30253",
+        }
+      }

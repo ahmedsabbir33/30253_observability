@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  external_labels:
+    environment: 'ubuntu-vagrant-local'
+    candidate_id: '30253'
+
+scrape_configs:
+  # Job 1: Ubuntu Host Telemetry via Node Exporter
+  - job_name: 'ubuntu-node-exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          host: 'ubuntu-observability'
+          role: 'host-metrics'
+
+  # Job 2: Instrumented Node.js Order API Telemetry
+  - job_name: 'order-api'
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['order-api:8000']
+        labels:
+          service: 'order-observability-api'
+          role: 'app-metrics'

@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ORDER API // ISOMETRIC 3D OBSERVABILITY DECK</title>
+  <style>
+    :root {
+      --bg-base: #0b101b;
+      --bg-panel: #131c2e;
+      --bg-panel-top: #182338;
+      --bg-panel-side: #0d1422;
+      --bg-input: #0d1524;
+      --ink: #e2e8f0;
+      --ink-muted: #8b9bb4;
+      --edge-light: #2d4263;
+      --edge-dark: #070b12;
+
+      --iso-cyan: #00f0ff;
+      --iso-cyan-side: #008899;
+      --iso-green: #00e676;
+      --iso-green-side: #008040;
+      --iso-amber: #ffb300;
+      --iso-amber-side: #996b00;
+      --iso-pink: #ff2a85;
+      --iso-pink-side: #99144d;
+      --iso-red: #ff3d57;
+      --iso-red-side: #991b2c;
+      --iso-purple: #b388ff;
+      --iso-purple-side: #5e35b1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px 20px 70px;
+      background-color: var(--bg-base);
+      /* True 30-degree / 150-degree Isometric Blueprint Grid */
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.12), transparent 60%),
+        linear-gradient(30deg, rgba(45, 66, 99, 0.22) 1px, transparent 1px),
+        linear-gradient(150deg, rgba(45, 66, 99, 0.22) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 66, 99, 0.12) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 23px, 40px 23px, 40px 23px;
+      color: var(--ink);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Optional 3D Camera Perspective Modes */
+    .wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-style: preserve-3d;
+    }
+
+    body.tilt-deck .wrapper {
+      transform: perspective(1600px) rotateX(6deg) rotateY(-3deg) scale(0.98);
+    }
+
+    body.tilt-iso .wrapper {
+      transform: perspective(1500px) rotateX(14deg) rotateZ(-4deg) scale(0.95);
+    }
+
+    /* Isometric 3D Extruded Slab Base */
+    .iso-slab {
+      position: relative;
+      background: linear-gradient(145deg, var(--bg-panel-top) 0%, var(--bg-panel) 100%);
+      border: 1.5px solid var(--edge-light);
+      border-top-color: rgba(0, 240, 255, 0.4);
+      border-left-color: rgba(0, 240, 255, 0.28);
+      border-radius: 6px;
+      /* Layered 3D Extrusion + Drop Shadow */
+      box-shadow:
+        1px 1px 0px #0a101d,
+        2px 2px 0px #0a101d,
+        3px 3px 0px #090e1a,
+        4px 4px 0px #090e1a,
+        5px 5px 0px #080c16,
+        6px 6px 0px #080c16,
+        7px 7px 0px #060911,
+        8px 8px 0px #05080f,
+        14px 16px 28px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    /* Header Banner */
+    .hero-banner {
+      padding: 22px 26px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 26px;
+      background: linear-gradient(135deg, #16243d 0%, #0f1829 100%);
+      border-top: 2px solid var(--iso-cyan);
+    }
+
+    .hero-title {
+      margin: 0;
+      font-size: clamp(20px, 2.8vw, 30px);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(0, 240, 255, 0.35);
+    }
+
+    .hero-sub {
+      margin: 8px 0 0;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--iso-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* 3D Extruded Pill Links */
+    .pill-link {
+      background: #1b2942;
+      color: #ffffff;
+      border: 1px solid var(--iso-cyan);
+      border-radius: 4px;
+      padding: 8px 14px;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow:
+        1px 1px 0px var(--iso-cyan-side),
+        2px 2px 0px var(--iso-cyan-side),
+        3px 3px 0px var(--iso-cyan-side),
+        4px 4px 0px #05080f,
+        6px 8px 14px rgba(0, 0, 0, 0.5);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+    }
+
+    .pill-link:hover {
+      background: #223554;
+      transform: translate(-2px, -2px);
+      box-shadow:
+        1px 1px 0px var(--iso-cyan-side),
+        2px 2px 0px var(--iso-cyan-side),
+        3px 3px 0px var(--iso-cyan-side),
+        5px 5px 0px var(--iso-cyan-side),
+        6px 6px 0px #05080f,
+        8px 10px 18px rgba(0, 240, 255, 0.25);
+    }
+
+    .pill-link:active {
+      transform: translate(3px, 3px);
+      box-shadow: 1px 1px 0px var(--iso-cyan-side);
+    }
+
+    .status-badge {
+      background: rgba(0, 230, 118, 0.18);
+      color: #ffffff;
+      border: 1.5px solid var(--iso-green);
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow:
+        1px 1px 0px var(--iso-green-side),
+        2px 2px 0px var(--iso-green-side),
+        3px 3px 0px var(--iso-green-side),
+        4px 4px 0px #05080f,
+        0 0 16px rgba(0, 230, 118, 0.25);
+    }
+
+    /* Live KPI Isometric Slabs */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 26px;
+    }
+
+    .kpi-card {
+      position: relative;
+      padding: 18px 20px;
+      border-radius: 6px;
+      background: linear-gradient(145deg, #1a2740 0%, #111a2b 100%);
+      border: 1.5px solid var(--edge-light);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translate(-3px, -3px);
+    }
+
+    /* Color-Coded 3D Isometric Extrusion Walls for KPIs */
+    .kpi-card.mint {
+      border-top-color: var(--iso-cyan);
+      border-left-color: var(--iso-cyan);
+      box-shadow:
+        1px 1px 0px var(--iso-cyan-side),
+        2px 2px 0px var(--iso-cyan-side),
+        3px 3px 0px var(--iso-cyan-side),
+        4px 4px 0px var(--iso-cyan-side),
+        5px 5px 0px #07131a,
+        6px 6px 0px #07131a,
+        10px 12px 22px rgba(0, 0, 0, 0.6);
+    }
+
+    .kpi-card.green {
+      border-top-color: var(--iso-green);
+      border-left-color: var(--iso-green);
+      box-shadow:
+        1px 1px 0px var(--iso-green-side),
+        2px 2px 0px var(--iso-green-side),
+        3px 3px 0px var(--iso-green-side),
+        4px 4px 0px var(--iso-green-side),
+        5px 5px 0px #071710,
+        6px 6px 0px #071710,
+        10px 12px 22px rgba(0, 0, 0, 0.6);
+    }
+
+    .kpi-card.red {
+      border-top-color: var(--iso-red);
+      border-left-color: var(--iso-red);
+      box-shadow:
+        1px 1px 0px var(--iso-red-side),
+        2px 2px 0px var(--iso-red-side),
+        3px 3px 0px var(--iso-red-side),
+        4px 4px 0px var(--iso-red-side),
+        5px 5px 0px #1a080c,
+        6px 6px 0px #1a080c,
+        10px 12px 22px rgba(0, 0, 0, 0.6);
+    }
+
+    .kpi-card.purple {
+      border-top-color: var(--iso-purple);
+      border-left-color: var(--iso-purple);
+      box-shadow:
+        1px 1px 0px var(--iso-purple-side),
+        2px 2px 0px var(--iso-purple-side),
+        3px 3px 0px var(--iso-purple-side),
+        4px 4px 0px var(--iso-purple-side),
+        5px 5px 0px #120b24,
+        6px 6px 0px #120b24,
+        10px 12px 22px rgba(0, 0, 0, 0.6);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 34px;
+      font-weight: 900;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      line-height: 1.1;
+      color: #ffffff;
+      text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
+    }
+
+    .kpi-card.mint .kpi-value { color: var(--iso-cyan); }
+    .kpi-card.green .kpi-value { color: var(--iso-green); }
+    .kpi-card.red .kpi-value { color: var(--iso-red); }
+    .kpi-card.purple .kpi-value { color: var(--iso-purple); }
+
+    .kpi-foot {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      margin-top: 8px;
+      color: var(--ink-muted);
+    }
+
+    /* Main Control Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .neo-box {
+      padding: 22px;
+    }
+
+    .box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid var(--edge-light);
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+
+    .box-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #ffffff;
+    }
+
+    .box-tag {
+      background: rgba(0, 240, 255, 0.14);
+      color: var(--iso-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 9px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      box-shadow: 2px 2px 0px #060a12;
+    }
+
+    /* Recessed Isometric Form Controls */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1.5px solid var(--edge-light);
+      border-radius: 4px;
+      background: var(--bg-input);
+      color: #ffffff;
+      box-shadow:
+        inset 2px 2px 5px rgba(0, 0, 0, 0.75),
+        1px 1px 0px rgba(255, 255, 255, 0.05);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--iso-cyan);
+      box-shadow:
+        inset 2px 2px 5px rgba(0, 0, 0, 0.75),
+        0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Isometric 3D Tactile Push-Buttons */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .neo-btn {
+      position: relative;
+      border-radius: 5px;
+      padding: 13px 15px;
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      color: #070b12;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
+    }
+
+    .neo-btn span.sub {
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0.88;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .neo-btn:hover {
+      transform: translate(-2px, -2px);
+      filter: brightness(1.06);
+    }
+
+    .neo-btn:active {
+      transform: translate(4px, 4px);
+    }
+
+    /* 3D Extruded Color Variants */
+    .neo-btn.green {
+      background: linear-gradient(135deg, #33ff99 0%, var(--iso-green) 100%);
+      box-shadow:
+        1px 1px 0px var(--iso-green-side),
+        2px 2px 0px var(--iso-green-side),
+        3px 3px 0px var(--iso-green-side),
+        4px 4px 0px var(--iso-green-side),
+        5px 5px 0px var(--iso-green-side),
+        6px 6px 0px #04080e,
+        8px 10px 18px rgba(0, 0, 0, 0.55);
+    }
+    .neo-btn.green:active {
+      box-shadow: 1px 1px 0px var(--iso-green-side), 2px 2px 0px #04080e;
+    }
+
+    .neo-btn.orange, .neo-btn.yellow {
+      background: linear-gradient(135deg, #ffd54f 0%, var(--iso-amber) 100%);
+      box-shadow:
+        1px 1px 0px var(--iso-amber-side),
+        2px 2px 0px var(--iso-amber-side),
+        3px 3px 0px var(--iso-amber-side),
+        4px 4px 0px var(--iso-amber-side),
+        5px 5px 0px var(--iso-amber-side),
+        6px 6px 0px #04080e,
+        8px 10px 18px rgba(0, 0, 0, 0.55);
+    }
+    .neo-btn.orange:active, .neo-btn.yellow:active {
+      box-shadow: 1px 1px 0px var(--iso-amber-side), 2px 2px 0px #04080e;
+    }
+
+    .neo-btn.pink {
+      background: linear-gradient(135deg, #ff66a8 0%, var(--iso-pink) 100%);
+      color: #ffffff;
+      box-shadow:
+        1px 1px 0px var(--iso-pink-side),
+        2px 2px 0px var(--iso-pink-side),
+        3px 3px 0px var(--iso-pink-side),
+        4px 4px 0px var(--iso-pink-side),
+        5px 5px 0px var(--iso-pink-side),
+        6px 6px 0px #04080e,
+        8px 10px 18px rgba(0, 0, 0, 0.55);
+    }
+    .neo-btn.pink:active {
+      box-shadow: 1px 1px 0px var(--iso-pink-side), 2px 2px 0px #04080e;
+    }
+
+    .neo-btn.red {
+      background: linear-gradient(135deg, #ff6b7f 0%, var(--iso-red) 100%);
+      color: #ffffff;
+      box-shadow:
+        1px 1px 0px var(--iso-red-side),
+        2px 2px 0px var(--iso-red-side),
+        3px 3px 0px var(--iso-red-side),
+        4px 4px 0px var(--iso-red-side),
+        5px 5px 0px var(--iso-red-side),
+        6px 6px 0px #04080e,
+        8px 10px 18px rgba(0, 0, 0, 0.55);
+    }
+    .neo-btn.red:active {
+      box-shadow: 1px 1px 0px var(--iso-red-side), 2px 2px 0px #04080e;
+    }
+
+    .neo-btn.mint {
+      background: linear-gradient(135deg, #66f7ff 0%, var(--iso-cyan) 100%);
+      box-shadow:
+        1px 1px 0px var(--iso-cyan-side),
+        2px 2px 0px var(--iso-cyan-side),
+        3px 3px 0px var(--iso-cyan-side),
+        4px 4px 0px var(--iso-cyan-side),
+        5px 5px 0px var(--iso-cyan-side),
+        6px 6px 0px #04080e,
+        8px 10px 18px rgba(0, 0, 0, 0.55);
+    }
+    .neo-btn.mint:active {
+      box-shadow: 1px 1px 0px var(--iso-cyan-side), 2px 2px 0px #04080e;
+    }
+
+    /* Progress Status Bar */
+    .progress-strip {
+      margin-top: 18px;
+      padding: 11px 14px;
+      border-radius: 5px;
+      border: 1.5px solid var(--edge-light);
+      background: #0d1524;
+      color: var(--iso-cyan);
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Recessed 3D Terminal Output Bays */
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .terminal-box {
+      background: #070b12;
+      color: var(--iso-green);
+      border: 1.5px solid var(--edge-light);
+      border-radius: 5px;
+      box-shadow:
+        inset 3px 3px 10px rgba(0, 0, 0, 0.9),
+        inset 0 0 18px rgba(0, 240, 255, 0.04);
+      padding: 15px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      height: 290px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+
+    @media (max-width: 920px) {
+      .kpi-grid, .main-grid, .form-grid {
+        grid-template-columns: 1fr;
+      }
+      body.tilt-deck .wrapper,
+      body.tilt-iso .wrapper {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <!-- Top Header -->
+    <header class="hero-banner iso-slab">
+      <div>
+        <h1 class="hero-title">Order API // Isometric Telemetry Deck</h1>
+        <div class="hero-sub">CANDIDATE 30253 · TASK 03 &amp; 08 LIVE DEMONSTRATION CONSOLE</div>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="pill-link" onclick="cycleCamera()" id="cam-btn">CUBE VIEW: 2.5D SLAB</button>
+        <a class="pill-link" href="/health" target="_blank">GET /health ↗</a>
+        <a class="pill-link" href="/metrics" target="_blank">GET /metrics ↗</a>
+        <div id="health-pill" class="status-badge">STATUS: CHECKING...</div>
+      </div>
+    </header>
+
+    <!-- Live Parsed Prometheus Counters -->
+    <section class="kpi-grid" aria-label="Live Prometheus Metric Summary">
+      <div class="kpi-card mint">
+        <span class="kpi-label">Total HTTP Requests</span>
+        <div class="kpi-value" id="kpi-requests">0</div>
+        <div class="kpi-foot">order_api_http_requests_total</div>
+      </div>
+      <div class="kpi-card green">
+        <span class="kpi-label">Orders Created (Business)</span>
+        <div class="kpi-value" id="kpi-orders">0</div>
+        <div class="kpi-foot">order_api_orders_created_total</div>
+      </div>
+      <div class="kpi-card red">
+        <span class="kpi-label">Failed Requests (4xx/5xx)</span>
+        <div class="kpi-value" id="kpi-failures">0</div>
+        <div class="kpi-foot">outcome="failure"</div>
+      </div>
+      <div class="kpi-card purple">
+        <span class="kpi-label">Histogram Samples</span>
+        <div class="kpi-value" id="kpi-hist-count">0</div>
+        <div class="kpi-foot">_duration_seconds_count</div>
+      </div>
+    </section>
+
+    <!-- Interactive Traffic Generators -->
+    <section class="main-grid">
+      <!-- Left: Single Request Trigger -->
+      <div class="neo-box iso-slab">
+        <div class="box-header">
+          <h2 class="box-title">01. Single Order Dispatch</h2>
+          <span class="box-tag">POST /api/orders</span>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label for="item-input">Item Name</label>
+            <input id="item-input" type="text" value="nvme-ssd-2tb" />
+          </div>
+          <div>
+            <label for="qty-input">Qty</label>
+            <input id="qty-input" type="number" value="2" min="1" max="99" />
+          </div>
+          <div>
+            <label for="category-select">Category Label</label>
+            <select id="category-select">
+              <option value="electronics">electronics</option>
+              <option value="books">books</option>
+              <option value="groceries">groceries</option>
+            </select>
+          </div>
+          <div>
+            <label for="payment-select">Payment Label</label>
+            <select id="payment-select">
+              <option value="card">card</option>
+              <option value="bkash">bkash</option>
+              <option value="cod">cod</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-grid">
+          <button class="neo-btn green" onclick="triggerSingle('normal')">
+            <span>⚡ Standard Order (201)</span>
+            <span class="sub">Fast latency (12-60ms) · Increments business counter</span>
+          </button>
+          <button class="neo-btn orange" onclick="triggerSingle('slow')">
+            <span>🐢 Heavy Latency Order (201)</span>
+            <span class="sub">Slow latency (350-900ms) · Shifts p95 histogram</span>
+          </button>
+          <button class="neo-btn pink" onclick="triggerSingle('error400')">
+            <span>🚫 Invalid Payload (400)</span>
+            <span class="sub">Simulates bad quantity · reason="validation_error"</span>
+          </button>
+          <button class="neo-btn red" onclick="triggerSingle('error500')">
+            <span>💥 Gateway Crash (500)</span>
+            <span class="sub">Simulates upstream timeout · outcome="failure"</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Bulk Burst Generator -->
+      <div class="neo-box iso-slab">
+        <div class="box-header">
+          <h2 class="box-title">02. Multi-Rate Burst Engine</h2>
+          <span class="box-tag">LIVE DEMO LOAD</span>
+        </div>
+
+        <div class="btn-grid">
+          <button class="neo-btn mint" onclick="triggerBurst(25, 'normal')">
+            <span>🚀 Burst 25 Valid Orders</span>
+            <span class="sub">Spikes req/sec &amp; orders_created_total across categories</span>
+          </button>
+          <button class="neo-btn yellow" onclick="triggerBurst(15, 'slow')">
+            <span>📈 Burst 15 Slow Orders</span>
+            <span class="sub">Pushes p95 latency into 0.5s - 1.0s histogram buckets</span>
+          </button>
+          <button class="neo-btn pink" onclick="triggerBurst(15, 'error400')">
+            <span>⚠️ Burst 15 Client 400s</span>
+            <span class="sub">Spikes HTTP 400 validation failure rate</span>
+          </button>
+          <button class="neo-btn red" onclick="triggerBurst(20, 'error500')">
+            <span>🔥 Burst 20 Server 500s</span>
+            <span class="sub">Triggers high failure rate for Grafana Alert testing</span>
+          </button>
+        </div>
+
+        <div class="progress-strip">
+          <span id="burst-status">IDLE · Ready to generate traffic bursts</span>
+          <button class="pill-link" style="padding:4px 10px; font-size:11px;" onclick="refreshTelemetry()">SYNC /METRICS NOW</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Inspection Consoles -->
+    <section class="main-grid">
+      <div class="neo-box iso-slab">
+        <div class="terminal-header">
+          <h2 class="box-title">Latest HTTP Response Payload</h2>
+          <span class="box-tag" id="http-status-tag">WAITING</span>
+        </div>
+        <pre class="terminal-box" id="response-terminal">// Click any action button above to inspect the live HTTP response JSON...</pre>
+      </div>
+
+      <div class="neo-box iso-slab">
+        <div class="terminal-header">
+          <h2 class="box-title">Live Prometheus Telemetry (/metrics)</h2>
+          <span class="box-tag">PROM-CLIENT</span>
+        </div>
+        <pre class="terminal-box" id="metrics-terminal">Loading /metrics snapshot...</pre>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const CATEGORIES = ['electronics', 'books', 'groceries'];
+    const PAYMENTS = ['card', 'bkash', 'cod'];
+    let camMode = 0;
+
+    function cycleCamera() {
+      camMode = (camMode + 1) % 3;
+      const body = document.body;
+      const btn = document.getElementById('cam-btn');
+      body.classList.remove('tilt-deck', 'tilt-iso');
+      if (camMode === 1) {
+        body.classList.add('tilt-deck');
+        btn.textContent = 'CUBE VIEW: 3D TILT';
+      } else if (camMode === 2) {
+        body.classList.add('tilt-iso');
+        btn.textContent = 'CUBE VIEW: ISOMETRIC';
+      } else {
+        btn.textContent = 'CUBE VIEW: 2.5D SLAB';
+      }
+    }
+
+    async function triggerSingle(mode) {
+      const item = document.getElementById('item-input').value || 'demo-item';
+      const rawQty = Number(document.getElementById('qty-input').value) || 1;
+      const category = document.getElementById('category-select').value;
+      const payment_method = document.getElementById('payment-select').value;
+
+      const payload = {
+        item,
+        quantity: mode === 'error400' ? 0 : rawQty,
+        category,
+        payment_method,
+        mode
+      };
+
+      const start = performance.now();
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+
+        document.getElementById('http-status-tag').textContent = `HTTP ${res.status} · ${elapsed}ms`;
+        document.getElementById('response-terminal').textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById('http-status-tag').textContent = 'NETWORK ERROR';
+        document.getElementById('response-terminal').textContent = String(err);
+      }
+
+      await refreshTelemetry();
+    }
+
+    async function triggerBurst(totalCount, mode) {
+      const statusEl = document.getElementById('burst-status');
+      statusEl.textContent = `RUNNING BURST: Sending ${totalCount} '${mode}' requests...`;
+
+      let successCount = 0;
+      let failureCount = 0;
+      const start = performance.now();
+
+      const requests = [];
+      for (let i = 0; i < totalCount; i++) {
+        const payload = {
+          item: `burst-item-${i + 1}`,
+          quantity: mode === 'error400' ? -1 : ((i % 3) + 1),
+          category: CATEGORIES[i % CATEGORIES.length],
+          payment_method: PAYMENTS[i % PAYMENTS.length],
+          mode
+        };
+
+        requests.push(
+          fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+            .then((res) => {
+              if (res.ok) successCount++;
+              else failureCount++;
+              return res;
+            })
+            .catch(() => {
+              failureCount++;
+            })
+        );
+      }
+
+      await Promise.all(requests);
+      const totalMs = Math.round(performance.now() - start);
+
+      statusEl.textContent = `BURST COMPLETE: ${totalCount} sent in ${totalMs}ms (2xx: ${successCount} | 4xx/5xx: ${failureCount})`;
+      document.getElementById('http-status-tag').textContent = `BURST · ${totalMs}ms`;
+      document.getElementById('response-terminal').textContent = JSON.stringify({
+        event: 'bulk_burst_summary',
+        mode,
+        total_requests_sent: totalCount,
+        succeeded_2xx: successCount,
+        failed_4xx_5xx: failureCount,
+        duration_ms: totalMs,
+        timestamp: new Date().toISOString()
+      }, null, 2);
+
+      await refreshTelemetry();
+    }
+
+    function sumMetricLines(lines, prefix, filterSubstr) {
+      return lines
+        .filter((line) => line.startsWith(prefix) && (!filterSubstr || line.includes(filterSubstr)))
+        .reduce((acc, line) => {
+          const parts = line.trim().split(/\s+/);
+          const val = parseFloat(parts[parts.length - 1]);
+          return acc + (Number.isNaN(val) ? 0 : val);
+        }, 0);
+    }
+
+    async function refreshTelemetry() {
+      try {
+        const [healthRes, metricsRes] = await Promise.all([
+          fetch('/health'),
+          fetch('/metrics')
+        ]);
+
+        if (healthRes.ok) {
+          const h = await healthRes.json();
+          const pill = document.getElementById('health-pill');
+          pill.textContent = `UP · UPTIME ${h.uptime_seconds}s`;
+          pill.style.background = 'rgba(0, 230, 118, 0.22)';
+          pill.style.borderColor = '#00e676';
+        }
+
+        const rawMetrics = await metricsRes.text();
+        const lines = rawMetrics.split('\n');
+
+        const totalReqs = sumMetricLines(lines, 'order_api_http_requests_total{');
+        const totalOrders = sumMetricLines(lines, 'order_api_orders_created_total{');
+        const totalFailures = sumMetricLines(lines, 'order_api_http_requests_total{', 'outcome="failure"');
+        const totalHistCount = sumMetricLines(lines, 'order_api_http_request_duration_seconds_count{');
+
+        document.getElementById('kpi-requests').textContent = totalReqs;
+        document.getElementById('kpi-orders').textContent = totalOrders;
+        document.getElementById('kpi-failures').textContent = totalFailures;
+        document.getElementById('kpi-hist-count').textContent = totalHistCount;
+
+        const customLines = lines.filter((line) =>
+          line.startsWith('# HELP order_api_http_requests_total') ||
+          line.startsWith('order_api_http_requests_total') ||
+          line.startsWith('# HELP order_api_orders_created_total') ||
+          line.startsWith('order_api_orders_created_total') ||
+          line.startsWith('# HELP order_api_order_failures_total') ||
+          line.startsWith('order_api_order_failures_total') ||
+          line.startsWith('order_api_http_request_duration_seconds_bucket') ||
+          line.startsWith('order_api_http_request_duration_seconds_count') ||
+          line.startsWith('order_api_http_request_duration_seconds_sum')
+        );
+
+        document.getElementById('metrics-terminal').textContent = customLines.join('\n');
+      } catch (err) {
+        const pill = document.getElementById('health-pill');
+        pill.textContent = 'API OFFLINE';
+        pill.style.background = 'rgba(255, 61, 87, 0.25)';
+        pill.style.borderColor = '#ff3d57';
+      }
+    }
+
+    refreshTelemetry();
+    setInterval(refreshTelemetry, 5000);
+  </script>
+</body>
+</html>

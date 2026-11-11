@@ -1,0 +1,25 @@
+# Secrets and local environment overrides (NEVER commit .env)
+.env
+*.pem
+*.key
+
+# Vagrant local state and VirtualBox artifacts
+.vagrant/
+*.box
+*.log
+
+# Node.js dependencies
+node_modules/
+app/node_modules/
+npm-debug.log*
+
+# Submission archives (generated locally when needed)
+*.zip
+*.tar.gz
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

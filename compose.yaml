@@ -1,0 +1,113 @@
+name: observability-stack
+
+services:
+  order-api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: order-api
+    restart: unless-stopped
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "192.168.56.10:8000:8000"
+    networks:
+      - observability-net
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    ports:
+      - "127.0.0.1:9100:9100"
+    networks:
+      - observability-net
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+      - "192.168.56.10:9090:9090"
+    depends_on:
+      - order-api
+      - node-exporter
+    networks:
+      - observability-net
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+      - "192.168.56.10:3100:3100"
+    networks:
+      - observability-net
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "192.168.56.10:8025:8025"
+    networks:
+      - observability-net
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/observability-overview.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "192.168.56.10:3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - mailpit
+    networks:
+      - observability-net
+
+networks:
+  observability-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  loki_data:
+  grafana_data:
